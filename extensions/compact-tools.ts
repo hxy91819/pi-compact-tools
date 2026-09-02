@@ -16,7 +16,7 @@ import { Container, Text } from "@earendil-works/pi-tui";
 import { stringifyArguments, summarizeToolCall, textOutput, type ToolArguments } from "../src/summary.ts";
 import { installTurnFolding } from "./turn-folding.ts";
 
-function compactTool(definition: ToolDefinition<any, any, any>): ToolDefinition<any, any, any> {
+function compactTool(definition: ToolDefinition<any, any, any>, outputPad: 0 | 1): ToolDefinition<any, any, any> {
   return {
     ...definition,
     renderShell: "self",
@@ -25,12 +25,12 @@ function compactTool(definition: ToolDefinition<any, any, any>): ToolDefinition<
 
       if (!context.expanded) {
         if (!context.isPartial) return new Container();
-        return new Text(theme.fg("toolTitle", `[运行中] ${summary}`), 0, 0);
+        return new Text(theme.fg("toolTitle", `[运行中] ${summary}`), outputPad, 0);
       }
 
       return new Text(
         `${theme.fg("toolTitle", definition.name)}\n${theme.fg("toolOutput", stringifyArguments(args as ToolArguments))}`,
-        0,
+        outputPad,
         0,
       );
     },
@@ -48,7 +48,7 @@ function compactTool(definition: ToolDefinition<any, any, any>): ToolDefinition<
         if (output) display += `\n${theme.fg("toolOutput", output)}`;
       }
 
-      return new Text(display, 0, 0);
+      return new Text(display, outputPad, 0);
     },
   };
 }
@@ -79,7 +79,7 @@ export default function (pi: ExtensionAPI) {
     for (const definition of definitions) {
       const current = registeredTools.get(definition.name);
       if (activeTools.has(definition.name) && current?.sourceInfo.source === "builtin") {
-        pi.registerTool(compactTool(definition));
+        pi.registerTool(compactTool(definition, settings.getOutputPad()));
       }
     }
   });

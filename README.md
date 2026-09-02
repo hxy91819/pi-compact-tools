@@ -17,7 +17,7 @@ Compact, collapsible built-in tool-call rendering for [Pi Coding Agent](https://
 Pi packages execute arbitrary code. Review this repository before installing it.
 
 ```bash
-pi install git:github.com/hxy91819/pi-compact-tools@v0.1.0
+pi install git:github.com/hxy91819/pi-compact-tools@v0.1.1
 ```
 
 Turn folding requires fullscreen mode. Add this setting if it is not already configured:

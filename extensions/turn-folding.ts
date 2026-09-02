@@ -6,7 +6,7 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { TurnFoldingState, type ProcessTurn } from "../src/turn-folding.ts";
 
-const PATCH_VERSION = 2;
+const PATCH_VERSION = 3;
 const RUNTIME_KEY = Symbol.for("pi-compact-tools.turn-folding.runtime");
 const PROCESS_TURN_KEY = Symbol.for("pi-compact-tools.turn-folding.process-turn");
 const TOOL_CALL_COUNT_KEY = Symbol.for("pi-compact-tools.turn-folding.tool-call-count");
@@ -24,6 +24,7 @@ type TranscriptRenderers = {
 type TurnFoldingRuntime = {
   state: TurnFoldingState;
   enabled: boolean;
+  outputPad: 0 | 1;
   patched: boolean;
   patchVersion?: number;
   originalRenderers?: TranscriptRenderers;
@@ -34,6 +35,7 @@ function runtime(): TurnFoldingRuntime {
   root[RUNTIME_KEY] ??= {
     state: new TurnFoldingState(),
     enabled: false,
+    outputPad: 1,
     patched: false,
   };
   return root[RUNTIME_KEY];
@@ -55,10 +57,10 @@ function toolCallCount(message: unknown): number {
   return content.filter((item) => item && typeof item === "object" && (item as { type?: unknown }).type === "toolCall").length;
 }
 
-function processHint(toolCalls: number, expanded: boolean): string {
+function processHint(toolCalls: number, expanded: boolean, outputPad: 0 | 1): string {
   const action = expanded ? "折叠" : "展开";
   const state = expanded ? "已展开" : "已折叠";
-  return `\x1b[2m[过程${state}：${toolCalls} 次 Tool Call · Ctrl+Shift+O ${action}]\x1b[0m`;
+  return `${" ".repeat(outputPad)}\x1b[2m[过程${state}：${toolCalls} 次 Tool Call · Ctrl+Shift+O ${action}]\x1b[0m`;
 }
 
 /**
@@ -119,7 +121,7 @@ function patchTranscriptRendering(current: TurnFoldingRuntime): void {
     const rendered = originalAssistantRender.call(this, width);
     const toolCalls = component[FINAL_HINT_KEY] as number | undefined;
     if (!current.enabled || !toolCalls) return rendered;
-    return [processHint(toolCalls, current.state.isExpanded()), "", ...rendered];
+    return ["", processHint(toolCalls, current.state.isExpanded(), current.outputPad), ...rendered];
   };
 
   const originalToolRender = toolPrototype.render;
@@ -142,6 +144,7 @@ export function installTurnFolding(pi: ExtensionAPI): void {
 
     const settings = SettingsManager.create(ctx.cwd, undefined, { projectTrusted: ctx.isProjectTrusted() });
     current.enabled = settings.getTuiMode() === "fullscreen";
+    current.outputPad = settings.getOutputPad();
     current.state.reset();
     ctx.ui.setStatus(STATUS_KEY, current.enabled ? undefined : "过程折叠仅在 fullscreen TUI 可用");
   });
