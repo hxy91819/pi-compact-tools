@@ -17,7 +17,7 @@ Compact, collapsible built-in tool-call rendering for [Pi Coding Agent](https://
 Pi packages execute arbitrary code. Review this repository before installing it.
 
 ```bash
-pi install git:github.com/hxy91819/pi-compact-tools@v0.1.1
+pi install git:github.com/hxy91819/pi-compact-tools@v0.1.2
 ```
 
 Turn folding requires fullscreen mode. Add this setting if it is not already configured:
@@ -42,6 +42,18 @@ During a turn, tool calls remain visible as single-line summaries. Once the agen
 ```
 
 Third-party tools retain their own compact rendering, but their process rows are folded with the rest of the completed turn.
+
+## Screenshots
+
+### Completed turn
+
+![A completed turn with 64 tool calls folded while its final response remains visible.](assets/collapsed-turn.png)
+
+### Compact tool calls
+
+![Completed bash tool calls stay one line each and expose Ctrl+O for details.](assets/compact-tool-calls.png)
+
+The command text in these local-session screenshots is intentionally removed; the images demonstrate only the extension's display behavior.
 
 ## Compatibility
 
