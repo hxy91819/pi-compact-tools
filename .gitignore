@@ -1,0 +1,12 @@
+node_modules/
+*.tgz
+*.log
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*.cer
+.DS_Store
+coverage/
