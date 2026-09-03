@@ -14,6 +14,8 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { Container, Text } from "@earendil-works/pi-tui";
 import { stringifyArguments, summarizeToolCall, textOutput, type ToolArguments } from "../src/summary.ts";
+import { installCompactionHistory } from "./compaction-history.ts";
+import { installCompactionTranscript } from "./compaction-transcript.ts";
 import { installTurnFolding } from "./turn-folding.ts";
 
 function compactTool(definition: ToolDefinition<any, any, any>, outputPad: 0 | 1): ToolDefinition<any, any, any> {
@@ -54,6 +56,8 @@ function compactTool(definition: ToolDefinition<any, any, any>, outputPad: 0 | 1
 }
 
 export default function (pi: ExtensionAPI) {
+  installCompactionHistory(pi);
+  installCompactionTranscript(pi);
   installTurnFolding(pi);
 
   pi.on("session_start", (_event, ctx) => {

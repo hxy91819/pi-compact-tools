@@ -70,6 +70,23 @@ npm run typecheck
 npm pack --dry-run
 ```
 
+## Release
+
+Releases are cut from tags. Bump `version` in `package.json`, commit, then tag with a matching `v` prefix:
+
+```bash
+npm version patch   # or minor / major
+git push --follow-tags
+```
+
+Pushing `v*` runs [`.github/workflows/release.yml`](.github/workflows/release.yml), which fails the release unless all of the following pass:
+
+1. The tag matches `package.json` version.
+2. `npm run verify` — typecheck, unit tests, end-to-end TUI tests, dependency audit, package contents.
+3. An install smoke test: `pi install git:github.com/hxy91819/pi-compact-tools@<tag>` into a throwaway config directory, then the same end-to-end suite runs against that installed copy.
+
+Only then is the GitHub release created. Run `npm run verify` locally before tagging to get the same result without waiting on CI.
+
 ## Security
 
 Do not commit credentials, session exports, transcripts, or private logs. Please report vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
