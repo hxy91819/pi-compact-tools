@@ -1,0 +1,76 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    name: Preflight
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Tag must match package.json version
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if [ "${{ github.ref_name }}" != "v${version}" ]; then
+            echo "::error::Tag ${{ github.ref_name }} does not match package.json version ${version}."
+            exit 1
+          fi
+
+  verify:
+    name: Verify
+    needs: preflight
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      # Typecheck, unit tests, end-to-end TUI tests, audit, and package contents.
+      - run: npm run verify
+
+  install-smoke:
+    name: Install smoke test
+    needs: verify
+    runs-on: ubuntu-latest
+    env:
+      PI_CODING_AGENT_DIR: ${{ github.workspace }}/.release-agent
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Install the tag the way users do
+        run: ./node_modules/.bin/pi install "git:github.com/${{ github.repository }}@${{ github.ref_name }}"
+      - name: Run the end-to-end suite against the installed copy
+        env:
+          PI_COMPACT_TOOLS_EXTENSION: ${{ env.PI_CODING_AGENT_DIR }}/git/github.com/${{ github.repository }}/extensions/compact-tools.ts
+        run: npm run test:e2e
+
+  release:
+    name: Publish release
+    needs: [verify, install-smoke]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - run: gh release create "${{ github.ref_name }}" --verify-tag --generate-notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
