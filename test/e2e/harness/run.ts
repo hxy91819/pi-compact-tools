@@ -28,6 +28,7 @@ export const NOTE_CONTENT = "NOTE-FILE-CONTENT";
 export interface ScenarioOptions {
   tuiMode: "fullscreen" | "regular";
   responses: unknown[];
+  preloadExtensions?: string[];
   /** Files written into the scratch workspace before Pi starts. */
   files?: Record<string, string>;
 }
@@ -94,6 +95,7 @@ export class Scenario {
         "--no-extensions",
         "-e",
         MOCK_PROVIDER_PATH,
+        ...(options.preloadExtensions ?? []).flatMap((extension) => ["-e", extension]),
         "-e",
         EXTENSION_UNDER_TEST,
         "-a",
@@ -118,6 +120,11 @@ export class Scenario {
 
   /** Waits for the interactive UI, sends the prompt, and waits for completion. */
   async runTurn(prompt: string): Promise<void> {
+    await this.submitTurn(prompt);
+    await this.waitForTurnEnd();
+  }
+
+  async submitTurn(prompt: string): Promise<void> {
     // The model id is rendered in the footer only once the editor is live, so
     // it doubles as a readiness probe that does not depend on Pi's wording.
     await this.session.waitFor(
@@ -126,9 +133,34 @@ export class Scenario {
       "the interactive TUI to start",
     );
     this.session.submit(prompt);
+  }
+
+  async waitForTurnEnd(): Promise<void> {
     await this.session.waitForSignal(() => this.signals(), "agent_end", 60_000);
     // The fold is applied by the agent_end handler, so let the repaint land.
     await this.session.waitForIdle(800, 15_000);
+  }
+
+  async waitForScreenText(value: string): Promise<void> {
+    await this.session.waitFor(
+      (screen) => screen.text().includes(value),
+      60_000,
+      `screen text ${JSON.stringify(value)}`,
+    );
+  }
+
+  async waitForScreenTextOrOutput(screenText: string, outputText: string): Promise<"screen" | "output"> {
+    let outcome: "screen" | "output" | undefined;
+    await this.session.waitForTerminal(
+      (screen, output) => {
+        if (output.includes(outputText)) outcome = "output";
+        else if (screen.text().includes(screenText)) outcome = "screen";
+        return outcome !== undefined;
+      },
+      10_000,
+      `${JSON.stringify(screenText)} on screen or ${JSON.stringify(outputText)} in terminal output`,
+    );
+    return outcome!;
   }
 
   signals(): string {

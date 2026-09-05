@@ -4,13 +4,18 @@ import {
   ToolExecutionComponent,
   type ExtensionAPI,
 } from "@earendil-works/pi-coding-agent";
-import { TurnFoldingState, type ProcessTurn } from "../src/turn-folding.ts";
+import {
+  shouldHideAssistantProcess,
+  TurnFoldingState,
+  type ProcessTurn,
+} from "../src/turn-folding.ts";
 
-const PATCH_VERSION = 3;
+const PATCH_VERSION = 4;
 const RUNTIME_KEY = Symbol.for("pi-compact-tools.turn-folding.runtime");
 const PROCESS_TURN_KEY = Symbol.for("pi-compact-tools.turn-folding.process-turn");
 const TOOL_CALL_COUNT_KEY = Symbol.for("pi-compact-tools.turn-folding.tool-call-count");
 const FINAL_HINT_KEY = Symbol.for("pi-compact-tools.turn-folding.final-hint");
+const HAS_ASSISTANT_TEXT_KEY = Symbol.for("pi-compact-tools.turn-folding.has-assistant-text");
 const STATUS_KEY = "pi-compact-tools.turn-folding";
 
 type FoldableComponent = Record<PropertyKey, unknown>;
@@ -57,6 +62,20 @@ function toolCallCount(message: unknown): number {
   return content.filter((item) => item && typeof item === "object" && (item as { type?: unknown }).type === "toolCall").length;
 }
 
+function hasAssistantText(message: unknown): boolean {
+  if (!message || typeof message !== "object") return false;
+  const content = (message as { content?: unknown }).content;
+  if (!Array.isArray(content)) return false;
+  return content.some(
+    (item) =>
+      item &&
+      typeof item === "object" &&
+      (item as { type?: unknown }).type === "text" &&
+      typeof (item as { text?: unknown }).text === "string" &&
+      (item as { text: string }).text.trim().length > 0,
+  );
+}
+
 function processHint(toolCalls: number, expanded: boolean, outputPad: 0 | 1): string {
   const action = expanded ? "折叠" : "展开";
   const state = expanded ? "已展开" : "已折叠";
@@ -96,6 +115,7 @@ function patchTranscriptRendering(current: TurnFoldingRuntime): void {
   assistantPrototype.updateContent = function (...args: unknown[]) {
     const result = originalAssistantUpdateContent.apply(this, args);
     const component = this as unknown as FoldableComponent;
+    component[HAS_ASSISTANT_TEXT_KEY] = hasAssistantText(args[0]);
     const recordedToolCalls = (component[TOOL_CALL_COUNT_KEY] as number | undefined) ?? 0;
     const totalToolCalls = toolCallCount(args[0]);
     if (totalToolCalls > recordedToolCalls) {
@@ -114,8 +134,9 @@ function patchTranscriptRendering(current: TurnFoldingRuntime): void {
 
   assistantPrototype.render = function (width: number): string[] {
     const component = this as unknown as FoldableComponent;
-    if (current.enabled && component.hasToolCalls === true && current.state.shouldHide(processTurn(component, current.state))) {
-      return [];
+    if (current.enabled && component.hasToolCalls === true) {
+      const hasText = component[HAS_ASSISTANT_TEXT_KEY] === true;
+      if (shouldHideAssistantProcess(current.state, processTurn(component, current.state), hasText)) return [];
     }
 
     const rendered = originalAssistantRender.call(this, width);

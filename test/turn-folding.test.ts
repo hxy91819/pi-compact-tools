@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { TurnFoldingState } from "../src/turn-folding.ts";
+import { shouldHideAssistantProcess, TurnFoldingState } from "../src/turn-folding.ts";
 
 test("历史过程默认折叠", () => {
   const state = new TurnFoldingState();
@@ -20,6 +20,19 @@ test("当前 turn 在 agent 运行期间保持可见，完成后自动折叠", (
   state.settle();
 
   assert.equal(state.shouldHide(currentTurn), true);
+});
+
+test("当前 turn 压缩只有 Thinking 的过程消息，但保留中间正文", () => {
+  const state = new TurnFoldingState();
+  state.reset();
+  state.startUserTurn();
+  const currentTurn = state.assignProcessTurn();
+
+  assert.equal(shouldHideAssistantProcess(state, currentTurn, false), true);
+  assert.equal(shouldHideAssistantProcess(state, currentTurn, true), false);
+
+  state.toggle();
+  assert.equal(shouldHideAssistantProcess(state, currentTurn, false), false);
 });
 
 test("在最终回复前累计并消费 Tool Call 数量", () => {

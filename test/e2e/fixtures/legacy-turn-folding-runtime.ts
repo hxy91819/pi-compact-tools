@@ -1,23 +1,5 @@
-export interface ProcessTurn {
-  epoch: number;
-  turn: number;
-}
-
-export interface AssistantProcessVisibilityState {
-  isExpanded(): boolean;
-  shouldHide(processTurn: ProcessTurn | undefined): boolean;
-}
-
-export function shouldHideAssistantProcess(
-  state: AssistantProcessVisibilityState,
-  processTurn: ProcessTurn | undefined,
-  hasText: boolean,
-): boolean {
-  if (!hasText && !state.isExpanded()) return true;
-  return state.shouldHide(processTurn);
-}
-
-export class TurnFoldingState {
+/** Simulates the global runtime object retained when Pi reloads an older extension version. */
+class LegacyTurnFoldingState {
   private epoch = 0;
   private activeTurn = 0;
   private completedTurn = 0;
@@ -38,17 +20,14 @@ export class TurnFoldingState {
   }
 
   ensureActiveTurn(): void {
-    if (this.activeTurn <= this.completedTurn) {
-      this.activeTurn += 1;
-      this.pendingToolCalls = 0;
-    }
+    if (this.activeTurn <= this.completedTurn) this.startUserTurn();
   }
 
   settle(): void {
     this.completedTurn = this.activeTurn;
   }
 
-  assignProcessTurn(): ProcessTurn {
+  assignProcessTurn(): { epoch: number; turn: number } {
     return { epoch: this.epoch, turn: this.activeTurn };
   }
 
@@ -71,10 +50,21 @@ export class TurnFoldingState {
     return this.expanded;
   }
 
-  shouldHide(processTurn: ProcessTurn | undefined): boolean {
+  shouldHide(processTurn: { epoch: number; turn: number } | undefined): boolean {
     if (this.expanded) return false;
     if (!processTurn || processTurn.epoch !== this.epoch) return true;
     return processTurn.turn <= this.completedTurn;
   }
-
 }
+
+const runtimeKey = Symbol.for("pi-compact-tools.turn-folding.runtime");
+const root = globalThis as typeof globalThis & { [runtimeKey]?: unknown };
+root[runtimeKey] = {
+  state: new LegacyTurnFoldingState(),
+  enabled: false,
+  outputPad: 1,
+  patched: false,
+  patchVersion: 3,
+};
+
+export default function (): void {}

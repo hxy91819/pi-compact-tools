@@ -1,6 +1,6 @@
 {
   "name": "pi-compact-tools",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Compact, collapsible built-in tool-call rendering for Pi Coding Agent.",
   "type": "module",
   "keywords": [

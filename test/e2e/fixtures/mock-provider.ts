@@ -31,6 +31,7 @@ interface ScriptedToolCall {
 }
 
 interface ScriptedResponse {
+  thinking?: string;
   toolCalls?: ScriptedToolCall[];
   text?: string;
 }
@@ -80,6 +81,15 @@ function streamSimple(
 
       const response = script.responses[cursor] ?? { text: "" };
       cursor += 1;
+
+      if (response.thinking !== undefined) {
+        const contentIndex = output.content.length;
+        output.content.push({ type: "thinking", thinking: "" });
+        stream.push({ type: "thinking_start", contentIndex, partial: output });
+        (output.content[contentIndex] as { thinking: string }).thinking = response.thinking;
+        stream.push({ type: "thinking_delta", contentIndex, delta: response.thinking, partial: output });
+        stream.push({ type: "thinking_end", contentIndex, content: response.thinking, partial: output });
+      }
 
       for (const call of response.toolCalls ?? []) {
         const contentIndex = output.content.length;

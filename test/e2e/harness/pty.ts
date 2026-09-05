@@ -116,6 +116,19 @@ export class PiSession {
     );
   }
 
+  async waitForTerminal(
+    predicate: (screen: Screen, output: string) => boolean,
+    timeoutMs: number,
+    description: string,
+  ): Promise<void> {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      if (predicate(this.screen, this.raw)) return;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    throw new Error(`Timed out after ${timeoutMs}ms waiting for ${description}.`);
+  }
+
   /** Waits until the terminal stops producing output, i.e. the UI is idle. */
   async waitForIdle(quietMs: number, timeoutMs: number): Promise<void> {
     const deadline = Date.now() + timeoutMs;
